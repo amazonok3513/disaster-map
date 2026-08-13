@@ -26,22 +26,16 @@
       zoom: 12                                      // ズームレベル（拡大率）
     });
     
-// ==============================
-// 現在地表示ボタン
-// ==============================
+// 現在地表示ボタンを追加
 map.addControl(
-new mapboxgl.GeolocateControl({
-// GPS精度を高精度にする
-positionOptions: {
-enableHighAccuracy: true
-},
-// 現在地を継続して追跡する
-trackUserLocation: true,
-// スマホが向いている方向を表示
-showUserHeading: true
-}),
-// ボタンを表示する位置
-'top-right'
+  new mapboxgl.GeolocateControl({
+    positionOptions: {
+      enableHighAccuracy: true
+    },
+    trackUserLocation: true,
+    showUserHeading: true
+  }),
+  'top-right'
 );
   </script>
 </body>
