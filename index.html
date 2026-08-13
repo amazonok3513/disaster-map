@@ -1,11 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>災害対応地図</title>
+<meta charset="utf-8">
+<title>災害対応地図</title>
+
+https://api.mapbox.com/mapbox-gl-js/v3.28.0/mapbox-gl.css
+
+<style>
+body{
+    margin:0;
+}
+#map{
+    width:100vw;
+    height:100vh;
+}
+</style>
 </head>
+
 <body>
-    <h1>災害対応地図</h1>
-    <p>GitHub Pages公開テスト</p>
+
+<div id="map"></div>
+
+box.com/mapbox-gl-js/v3.28.0/mapbox-gl.js"></script>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiYW1hem9ub2szNTEzIiwiYSI6ImNtb2gwMnYxaDAxdTgycHBvcm5scGQ4YmsifQ.8dFXcVz6apAtaeYug7hrzA';
+
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/standard',
+    center: [139.6917,35.6895],
+    zoom: 10
+});
+</script>
+
 </body>
 </html>
