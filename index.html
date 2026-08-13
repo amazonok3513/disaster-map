@@ -4,15 +4,17 @@
 <meta charset="utf-8">
 <title>災害対応地図</title>
 
-https://api.mapbox.com/mapbox-gl-js/v3.28.0/mapbox-gl.css
+://api.mapbox.com/mapbox-gl-js/v3.28.0/mapbox-gl.css" rel="stylesheet">
 
 <style>
-body{
-    margin:0;
+body {
+    margin: 0;
+    padding: 0;
 }
-#map{
-    width:100vw;
-    height:100vh;
+
+#map {
+    width: 100vw;
+    height: 100vh;
 }
 </style>
 </head>
@@ -21,7 +23,7 @@ body{
 
 <div id="map"></div>
 
-box.com/mapbox-gl-js/v3.28.0/mapbox-gl.js"></script>
+https://api.mapbox.com/mapbox-gl-js/v3.28.0/mapbox-gl.js"></script>
 
 <script>
 mapboxgl.accessToken = 'pk.eyJ1IjoiYW1hem9ub2szNTEzIiwiYSI6ImNtb2gwMnYxaDAxdTgycHBvcm5scGQ4YmsifQ.8dFXcVz6apAtaeYug7hrzA';
@@ -29,7 +31,7 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiYW1hem9ub2szNTEzIiwiYSI6ImNtb2gwMnYxaDAxdTgyc
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/standard',
-    center: [139.6917,35.6895],
+    center: [139.6917, 35.6895],
     zoom: 10
 });
 </script>
