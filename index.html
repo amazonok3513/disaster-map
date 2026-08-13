@@ -8,6 +8,8 @@
 <!-- Mapbox GL JS -->
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<!-- 地図の日本語表記化プラグイン -->
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-language/v1.0.0/mapbox-gl-language.js"></script>
 
 <style>
   html, body {
@@ -21,7 +23,7 @@
     top: 0; bottom: 0; left: 0; right: 0;
   }
 
-  /* 情報パネル(緯度経度表示) */
+  /* 情報パネル(緯度経度・MGRS表示) */
   #info-panel {
     position: absolute;
     top: 12px;
@@ -32,20 +34,32 @@
     padding: 10px 14px;
     border-radius: 8px;
     font-size: 13px;
-    line-height: 1.6;
-    min-width: 210px;
+    line-height: 1.5;
+    min-width: 230px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  #info-panel .block {
+    margin-bottom: 6px;
+  }
+  #info-panel .block:last-child {
+    margin-bottom: 0;
   }
   #info-panel .label {
     color: #9bd1a6;
     font-weight: bold;
-    margin-right: 6px;
+    display: block;
+    margin-bottom: 2px;
   }
   #info-panel .row {
     white-space: nowrap;
   }
   #info-panel .value {
     font-variant-numeric: tabular-nums;
+  }
+  #info-panel .mgrs {
+    color: #ffd27a;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
   }
 
   /* タイトル */
@@ -63,9 +77,45 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
   }
 
+  /* 背景地図切替パネル */
+  #style-switcher {
+    position: absolute;
+    top: 56px;
+    right: 12px;
+    z-index: 10;
+    background: rgba(20, 24, 28, 0.85);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #style-switcher button {
+    font-family: inherit;
+    font-size: 12px;
+    color: #f2f2f2;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 6px 10px;
+    text-align: left;
+    cursor: pointer;
+  }
+  #style-switcher button:hover {
+    background: rgba(255,255,255,0.18);
+  }
+  #style-switcher button.active {
+    background: #3a7d4c;
+    border-color: #3a7d4c;
+    font-weight: bold;
+  }
+
   @media (max-width: 480px) {
-    #info-panel { font-size: 12px; min-width: 170px; }
+    #info-panel { font-size: 12px; min-width: 190px; }
     #title-bar { font-size: 12px; padding: 6px 10px; }
+    #style-switcher { top: 48px; }
+    #style-switcher button { font-size: 11px; padding: 5px 8px; }
   }
 </style>
 </head>
@@ -75,25 +125,36 @@
 
 <div id="title-bar">災害対応Web地図(開発中)</div>
 
+<div id="style-switcher"></div>
+
 <div id="info-panel">
-  <div class="row">
-    <span class="label">現在地:</span>
-    <span class="value" id="my-lat-lng">位置情報取得ボタンを押してください</span>
+  <div class="block">
+    <span class="label">現在地</span>
+    <div class="row value" id="my-lat-lng">位置情報取得ボタンを押してください</div>
+    <div class="row mgrs" id="my-mgrs">-</div>
   </div>
-  <div class="row">
-    <span class="label">カーソル:</span>
-    <span class="value" id="cursor-lat-lng">-</span>
+  <div class="block">
+    <span class="label">カーソル</span>
+    <div class="row value" id="cursor-lat-lng">-</div>
+    <div class="row mgrs" id="cursor-mgrs">-</div>
   </div>
 </div>
 
 <script>
   // ▼▼▼ ここに自分のMapboxアクセストークンを入れてください ▼▼▼
-  // https://account.mapbox.com/access-tokens/ で取得できます(無料枠あり)
   mapboxgl.accessToken = 'pk.eyJ1IjoiYW1hem9ub2szNTEzIiwiYSI6ImNtb2gwMnYxaDAxdTgycHBvcm5scGQ4YmsifQ.8dFXcVz6apAtaeYug7hrzA';
+
+  // --- 背景地図(スタイル)一覧 ---
+  const mapStyles = [
+    { id: 'streets',  name: '標準',     url: 'mapbox://styles/mapbox/streets-v12' },
+    { id: 'satellite', name: '衛星写真', url: 'mapbox://styles/mapbox/satellite-streets-v12' },
+    { id: 'outdoors', name: '地形',     url: 'mapbox://styles/mapbox/outdoors-v12' },
+    { id: 'dark',     name: '夜間用',   url: 'mapbox://styles/mapbox/dark-v11' }
+  ];
 
   const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/streets-v12',
+    style: mapStyles[0].url,
     center: [138.2529, 36.2048], // 日本全体が見える位置(緯度経度)
     zoom: 5
   });
@@ -101,7 +162,26 @@
   // 標準のズーム・回転コントロール
   map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
-  // --- 機能1: 現在地表示 & 機能2: 現在地の緯度経度表示 ---
+  // --- 機能: 地図を日本語表記に ---
+  const language = new MapboxLanguage({ defaultLanguage: 'ja' });
+  map.addControl(language);
+
+  // --- 機能: 背景地図の切替 ---
+  const switcher = document.getElementById('style-switcher');
+  mapStyles.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = s.name;
+    btn.dataset.id = s.id;
+    if (i === 0) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      map.setStyle(s.url);
+      switcher.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+    switcher.appendChild(btn);
+  });
+
+  // --- 機能: 現在地表示 & 現在地の緯度経度表示 ---
   const geolocate = new mapboxgl.GeolocateControl({
     positionOptions: { enableHighAccuracy: true },
     trackUserLocation: true,
@@ -110,29 +190,105 @@
   map.addControl(geolocate, 'bottom-right');
 
   geolocate.on('geolocate', (e) => {
-    const lat = e.coords.latitude.toFixed(6);
-    const lng = e.coords.longitude.toFixed(6);
-    document.getElementById('my-lat-lng').textContent = `緯度 ${lat} / 経度 ${lng}`;
+    const lat = e.coords.latitude;
+    const lng = e.coords.longitude;
+    document.getElementById('my-lat-lng').textContent =
+      `緯度 ${lat.toFixed(6)} / 経度 ${lng.toFixed(6)}`;
+    document.getElementById('my-mgrs').textContent = 'MGRS ' + toMGRS(lat, lng);
   });
 
   geolocate.on('error', () => {
     document.getElementById('my-lat-lng').textContent = '位置情報を取得できませんでした';
+    document.getElementById('my-mgrs').textContent = '-';
   });
 
-  // --- 機能3: カーソル位置の緯度経度表示 ---
+  // --- 機能: カーソル位置の緯度経度表示 ---
   map.on('mousemove', (e) => {
-    const lat = e.lngLat.lat.toFixed(6);
-    const lng = e.lngLat.lng.toFixed(6);
-    document.getElementById('cursor-lat-lng').textContent = `緯度 ${lat} / 経度 ${lng}`;
+    updateCursorDisplay(e.lngLat.lat, e.lngLat.lng);
   });
-
-  // スマホのタップ位置も表示(タッチ操作対応)
   map.on('touchstart', (e) => {
     if (!e.points || e.points.length === 0) return;
-    const lat = e.lngLat.lat.toFixed(6);
-    const lng = e.lngLat.lng.toFixed(6);
-    document.getElementById('cursor-lat-lng').textContent = `緯度 ${lat} / 経度 ${lng}`;
+    updateCursorDisplay(e.lngLat.lat, e.lngLat.lng);
   });
+
+  function updateCursorDisplay(lat, lng) {
+    document.getElementById('cursor-lat-lng').textContent =
+      `緯度 ${lat.toFixed(6)} / 経度 ${lng.toFixed(6)}`;
+    document.getElementById('cursor-mgrs').textContent = 'MGRS ' + toMGRS(lat, lng);
+  }
+
+  // =====================================================================
+  // 緯度経度 → MGRS(軍事グリッド参照系)変換
+  // WGS84楕円体・標準的なUTM/MGRS変換式に基づく実装(外部ライブラリ不使用)
+  // =====================================================================
+  function toMGRS(lat, lon) {
+    const utm = llToUtm(lat, lon);
+    const band = latBand(lat);
+    const [colLetter, rowLetter] = get100kLetters(utm.zone, utm.easting, utm.northing);
+    const e5 = String(Math.floor(utm.easting % 100000)).padStart(5, '0');
+    const n5 = String(Math.floor(utm.northing % 100000)).padStart(5, '0');
+    return `${utm.zone}${band} ${colLetter}${rowLetter} ${e5} ${n5}`;
+  }
+
+  function llToUtm(lat, lon) {
+    const a = 6378137.0;            // WGS84 長半径
+    const eccSq = 0.00669438;       // WGS84 離心率の2乗
+    const k0 = 0.9996;
+
+    const latRad = lat * Math.PI / 180;
+    const lonRad = lon * Math.PI / 180;
+
+    let zone = Math.floor((lon + 180) / 6) + 1;
+    const lonOrigin = (zone - 1) * 6 - 180 + 3;
+    const lonOriginRad = lonOrigin * Math.PI / 180;
+
+    const eccPrimeSq = eccSq / (1 - eccSq);
+    const N = a / Math.sqrt(1 - eccSq * Math.sin(latRad) * Math.sin(latRad));
+    const T = Math.tan(latRad) * Math.tan(latRad);
+    const C = eccPrimeSq * Math.cos(latRad) * Math.cos(latRad);
+    const A = Math.cos(latRad) * (lonRad - lonOriginRad);
+
+    const M = a * (
+      (1 - eccSq/4 - 3*eccSq*eccSq/64 - 5*Math.pow(eccSq,3)/256) * latRad
+      - (3*eccSq/8 + 3*eccSq*eccSq/32 + 45*Math.pow(eccSq,3)/1024) * Math.sin(2*latRad)
+      + (15*eccSq*eccSq/256 + 45*Math.pow(eccSq,3)/1024) * Math.sin(4*latRad)
+      - (35*Math.pow(eccSq,3)/3072) * Math.sin(6*latRad)
+    );
+
+    let easting = k0*N*(A + (1-T+C)*Math.pow(A,3)/6
+      + (5-18*T+T*T+72*C-58*eccPrimeSq)*Math.pow(A,5)/120) + 500000.0;
+
+    let northing = k0*(M + N*Math.tan(latRad)*(
+      A*A/2 + (5-T+9*C+4*C*C)*Math.pow(A,4)/24
+      + (61-58*T+T*T+600*C-330*eccPrimeSq)*Math.pow(A,6)/720
+    ));
+    if (lat < 0) northing += 10000000.0;
+
+    return { zone, easting, northing };
+  }
+
+  function latBand(lat) {
+    const letters = 'CDEFGHJKLMNPQRSTUVWXX'; // I, O は使用しない。末尾Xは72〜84度をカバー
+    if (lat < -80 || lat > 84) return 'Z'; // MGRS対象外(極域)
+    let idx = Math.floor((lat + 80) / 8);
+    if (idx > 19) idx = 19;
+    return letters[idx];
+  }
+
+  function get100kLetters(zone, easting, northing) {
+    const colSets = ['ABCDEFGH', 'JKLMNPQR', 'STUVWXYZ'];
+    const rowSets = ['ABCDEFGHJKLMNPQRSTUV', 'FGHJKLMNPQRSTUVABCDE'];
+
+    const colLetters = colSets[(zone - 1) % 3];
+    const colIdx = Math.floor(easting / 100000) - 1; // 1〜8の範囲を想定
+    const col = colLetters[Math.max(0, Math.min(colIdx, colLetters.length - 1))];
+
+    const rowLetters = rowSets[(zone - 1) % 2];
+    const rowIdx = Math.floor(northing / 100000) % 20;
+    const row = rowLetters[rowIdx];
+
+    return [col, row];
+  }
 </script>
 
 </body>
