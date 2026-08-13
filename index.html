@@ -1,149 +1,139 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-  <meta charset="utf-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>災害対応Web地図</title>
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  >
+<!-- Mapbox GL JS -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
 
-  <title>災害対応地図</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  }
+  #map {
+    position: absolute;
+    top: 0; bottom: 0; left: 0; right: 0;
+  }
 
-  <!-- Mapbox GL JSのCSS -->
-  https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.css
+  /* 情報パネル(緯度経度表示) */
+  #info-panel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    background: rgba(20, 24, 28, 0.85);
+    color: #f2f2f2;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    min-width: 210px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  #info-panel .label {
+    color: #9bd1a6;
+    font-weight: bold;
+    margin-right: 6px;
+  }
+  #info-panel .row {
+    white-space: nowrap;
+  }
+  #info-panel .value {
+    font-variant-numeric: tabular-nums;
+  }
 
-  <!-- Mapbox GL JSのJavaScript -->
-  https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.js</script>
+  /* タイトル */
+  #title-bar {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    background: rgba(20, 24, 28, 0.85);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
 
-  <style>
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* 地図を画面全体に表示 */
-    #map {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 100%;
-    }
-
-    /* 座標表示パネル */
-    #coordinate-panel {
-      position: absolute;
-      left: 10px;
-      bottom: 30px;
-      z-index: 1;
-
-      padding: 10px 12px;
-
-      background-color: rgba(255, 255, 255, 0.95);
-      border: 1px solid #777;
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-
-      font-family: sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    /* 2つ目の座標欄の上に区切り線を表示 */
-    .coordinate-section + .coordinate-section {
-      margin-top: 7px;
-      padding-top: 7px;
-      border-top: 1px solid #ccc;
-    }
-  </style>
+  @media (max-width: 480px) {
+    #info-panel { font-size: 12px; min-width: 170px; }
+    #title-bar { font-size: 12px; padding: 6px 10px; }
+  }
+</style>
 </head>
-
 <body>
 
-  <!-- 地図 -->
-  <div id="map"></div>
+<div id="map"></div>
 
-  <!-- 座標表示パネル -->
-  <div id="coordinate-panel">
+<div id="title-bar">災害対応Web地図(開発中)</div>
 
-    <div class="coordinate-section">
-      <strong>現在地</strong><br>
-      緯度：<span id="current-latitude">未取得</span><br>
-      経度：<span id="current-longitude">未取得</span>
-    </div>
-
-    <div class="coordinate-section">
-      <strong>カーソル位置</strong><br>
-      緯度：<span id="cursor-latitude">---</span><br>
-      経度：<span id="cursor-longitude">---</span>
-    </div>
-
+<div id="info-panel">
+  <div class="row">
+    <span class="label">現在地:</span>
+    <span class="value" id="my-lat-lng">位置情報取得ボタンを押してください</span>
   </div>
+  <div class="row">
+    <span class="label">カーソル:</span>
+    <span class="value" id="cursor-lat-lng">-</span>
+  </div>
+</div>
 
-  <script>
-    // Mapboxアクセストークン
-    mapboxgl.accessToken = 'pk.eyJ1IjoiYW1hem9ub2szNTEzIiwiYSI6ImNtb2gwMnYxaDAxdTgycHBvcm5scGQ4YmsifQ.8dFXcVz6apAtaeYug7hrzA';
+<script>
+  // ▼▼▼ ここに自分のMapboxアクセストークンを入れてください ▼▼▼
+  // https://account.mapbox.com/access-tokens/ で取得できます(無料枠あり)
+  mapboxgl.accessToken = 'pk.eyJ1IjoiYW1hem9ub2szNTEzIiwiYSI6ImNtb2gwMnYxaDAxdTgycHBvcm5scGQ4YmsifQ.8dFXcVz6apAtaeYug7hrzA';
 
-    // 地図を作成
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [139.7670, 35.6814],
-      zoom: 12
-    });
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [138.2529, 36.2048], // 日本全体が見える位置(緯度経度)
+    zoom: 5
+  });
 
-    // 現在地表示ボタンを作成
-    const geolocateControl = new mapboxgl.GeolocateControl({
-      positionOptions: {
-        enableHighAccuracy: true
-      },
-      trackUserLocation: true,
-      showUserLocation: true,
-      showAccuracyCircle: true,
-      showUserHeading: true
-    });
+  // 標準のズーム・回転コントロール
+  map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
-    // 現在地表示ボタンを右上に追加
-    map.addControl(
-      geolocateControl,
-      'top-right'
-    );
+  // --- 機能1: 現在地表示 & 機能2: 現在地の緯度経度表示 ---
+  const geolocate = new mapboxgl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true,
+    showUserHeading: true
+  });
+  map.addControl(geolocate, 'bottom-right');
 
-    // 現在地を取得したときの処理
-    geolocateControl.on('geolocate', function (event) {
-      const latitude = event.coords.latitude;
-      const longitude = event.coords.longitude;
+  geolocate.on('geolocate', (e) => {
+    const lat = e.coords.latitude.toFixed(6);
+    const lng = e.coords.longitude.toFixed(6);
+    document.getElementById('my-lat-lng').textContent = `緯度 ${lat} / 経度 ${lng}`;
+  });
 
-      document.getElementById('current-latitude').textContent =
-        latitude.toFixed(6);
+  geolocate.on('error', () => {
+    document.getElementById('my-lat-lng').textContent = '位置情報を取得できませんでした';
+  });
 
-      document.getElementById('current-longitude').textContent =
-        longitude.toFixed(6);
-    });
+  // --- 機能3: カーソル位置の緯度経度表示 ---
+  map.on('mousemove', (e) => {
+    const lat = e.lngLat.lat.toFixed(6);
+    const lng = e.lngLat.lng.toFixed(6);
+    document.getElementById('cursor-lat-lng').textContent = `緯度 ${lat} / 経度 ${lng}`;
+  });
 
-    // 地図上でマウスを動かしたときの処理
-    map.on('mousemove', function (event) {
-      const latitude = event.lngLat.lat;
-      const longitude = event.lngLat.lng;
-
-      document.getElementById('cursor-latitude').textContent =
-        latitude.toFixed(6);
-
-      document.getElementById('cursor-longitude').textContent =
-        longitude.toFixed(6);
-    });
-
-    // カーソルが地図の外に出たら表示を戻す
-    map.getCanvasContainer().addEventListener('mouseleave', function () {
-      document.getElementById('cursor-latitude').textContent = '---';
-      document.getElementById('cursor-longitude').textContent = '---';
-    });
-  </script>
+  // スマホのタップ位置も表示(タッチ操作対応)
+  map.on('touchstart', (e) => {
+    if (!e.points || e.points.length === 0) return;
+    const lat = e.lngLat.lat.toFixed(6);
+    const lng = e.lngLat.lng.toFixed(6);
+    document.getElementById('cursor-lat-lng').textContent = `緯度 ${lat} / 経度 ${lng}`;
+  });
+</script>
 
 </body>
-
 </html>
